@@ -7,11 +7,17 @@ const { Server } = require("socket.io");
 const authRoute = require('./routes/auth');
 const usersRoute = require('./routes/users');
 const secretsRoute = require('./routes/secrets');
+const auditLogsRoute = require('./routes/auditLogs');
+const caRoute = require('./routes/ca');
+const { apiLimiter, loginLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
+
+// Apply rate limiting to all API routes
+app.use('/api/', apiLimiter);
 // --- 3. CẤU HÌNH SOCKET.IO ---
 const server = http.createServer(app); // Tạo server bọc lấy app
 const io = new Server(server, {
@@ -23,7 +29,7 @@ const io = new Server(server, {
 
 // Lắng nghe kết nối
 io.on("connection", (socket) => {
-  console.log(`🔌 Có người kết nối: ${socket.id}`);
+  console.log(`Có người kết nối: ${socket.id}`);
 
   // Khi Client gửi sự kiện 'join_room' (kèm userId), cho họ vào phòng riêng
   socket.on("join_room", (userId) => {
@@ -42,13 +48,15 @@ app.use((req, res, next) => {
   next();
 });
 // Kết nối DB
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/secret_manager')
-  .then(() => console.log('✅ MongoDB Connected'))
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB Connected'))
   .catch(err => console.log(err));
 
 // Sử dụng Route Auth
 app.use('/api/auth', authRoute);
-app.use('/api/users', usersRoute);  
+app.use('/api/users', usersRoute);
 app.use('/api/secrets', secretsRoute);
+app.use('/api/audit-logs', auditLogsRoute);
+app.use('/api/ca', caRoute);  // Certificate Authority routes
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

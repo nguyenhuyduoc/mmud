@@ -1,187 +1,3 @@
-// import { useState } from 'react';
-// import axios from 'axios';
-// import { useNavigate, Link } from 'react-router-dom';
-
-
-// import {
-//   passwordToMasterKey,
-//   deriveAuthHash,
-//   generateEG,
-//   encryptWithGCM,
-//   genRandomSalt,
-//   bufferToHex
-// } from '../utils/lib';
-
-// const Register = () => {
-//   const [email, setEmail] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [confirmPassword, setConfirmPassword] = useState('');
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState('');
-  
-//   const navigate = useNavigate();
-
-//   const handleRegister = async (e) => {
-//     e.preventDefault();
-//     setError('');
-//     setLoading(true);
-
-//     if (password !== confirmPassword) {
-//       setError("Mật khẩu không khớp!");
-//       setLoading(false);
-//       return;
-//     }
-
-//     try {
-//       console.log("🚀 Bắt đầu quy trình Zero-Knowledge Registration...");
-
-//       // --- BƯỚC 1: TẠO MASTER KEY (Client-side only) ---
-//       // Tạo một chuỗi Salt ngẫu nhiên để chống Rainbow Table
-//       // Salt này sẽ được lưu công khai trên server để dùng lại lúc đăng nhập
-//       const salt = genRandomSalt(); 
-      
-//       console.log("1. Đang tính toán Master Key từ mật khẩu...");
-//       // KDF: Password + Salt -> Master Key (Khóa này dùng để giải mã, KHÔNG GỬI ĐI)
-//       const masterKey = await passwordToMasterKey(password, salt);
-//       console.log(masterKey)
-//       // --- BƯỚC 2: TẠO AUTH HASH (Để đăng nhập) ---
-//       console.log("2. Đang tạo Auth Hash...");
-//       // Hash: Master Key -> Auth Hash (Khóa này gửi Server để check login)
-//       const authHash = await deriveAuthHash(masterKey);
-//       console.log(authHash)
-//       // --- BƯỚC 3: TẠO CẶP KHÓA ĐỊNH DANH (Identity Keys) ---
-//       console.log("3. Đang sinh cặp khóa RSA/ElGamal...");
-//       const keyPair = await generateEG(); // Trả về { pub: CryptoKey, sec: CryptoKey }
-
-//       // --- BƯỚC 4: XUẤT KHÓA (Export Keys) ---
-//       // CryptoKey là object đặc biệt của trình duyệt, không gửi qua mạng được
-//       // Phải xuất ra dạng JSON (JWK)
-//       const publicKeyJWK = await crypto.subtle.exportKey("jwk", keyPair.pub);
-//       const privateKeyJWK = await crypto.subtle.exportKey("jwk", keyPair.sec);
-
-//       // --- BƯỚC 5: MÃ HÓA PRIVATE KEY (Két sắt) ---
-//       console.log("4. Đang đóng gói Private Key vào két sắt...");
-//       const privKeyJsonString = JSON.stringify(privateKeyJWK);
-//       const iv = genRandomSalt(); // Vector khởi tạo cho AES
-      
-//       // Dùng Master Key để khóa Private Key lại
-//       const encryptedPrivateKeyCipher = await encryptWithGCM(
-//         masterKey, 
-//         privKeyJsonString, 
-//         iv
-//       );
-
-//       // --- BƯỚC 6: GỬI LÊN SERVER ---
-//       const payload = {
-//         email: email,
-//         auth_hash: authHash,      // Để login
-//         salt: bufferToHex(salt),               // Để lần sau tính lại được Master Key
-//         public_key: publicKeyJWK, // Để người khác share đồ cho mình
-//         encrypted_private_key: {  // Két sắt
-//           iv: bufferToHex(iv),
-//           ciphertext: bufferToHex(encryptedPrivateKeyCipher)
-//         }
-//       };
-
-//       console.log("5. Gửi Payload lên API:", payload);
-      
-//       // Gọi API Backend
-//       await axios.post('http://localhost:5000/api/auth/register', payload);
-      
-//       alert("Đăng ký thành công! Hãy đăng nhập.");
-//       navigate('/login');
-
-//     } catch (err) {
-//       console.error("Lỗi đăng ký:", err);
-//       setError(err.response?.data?.message || "Đã có lỗi xảy ra khi xử lý mật mã.");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return (
-//     <div style={styles.container}>
-//       <div style={styles.formBox}>
-//         <h2>Đăng ký TeamVault</h2>
-//         <p style={{marginBottom: '20px', color: '#666'}}>Mô hình Zero-Knowledge</p>
-        
-//         {error && <div style={styles.error}>{error}</div>}
-        
-//         <form onSubmit={handleRegister}>
-//           <div style={styles.inputGroup}>
-//             <label>Email</label>
-//             <input 
-//               type="email" 
-//               required 
-//               value={email}
-//               onChange={(e) => setEmail(e.target.value)}
-//               style={styles.input}
-//             />
-//           </div>
-          
-//           <div style={styles.inputGroup}>
-//             <label>Mật khẩu</label>
-//             <input 
-//               type="password" 
-//               required 
-//               value={password}
-//               onChange={(e) => setPassword(e.target.value)}
-//               style={styles.input}
-//               placeholder="Nhập mật khẩu mạnh..."
-//             />
-//           </div>
-
-//           <div style={styles.inputGroup}>
-//             <label>Nhập lại Mật khẩu</label>
-//             <input 
-//               type="password" 
-//               required 
-//               value={confirmPassword}
-//               onChange={(e) => setConfirmPassword(e.target.value)}
-//               style={styles.input}
-//             />
-//           </div>
-
-//           <button type="submit" disabled={loading} style={styles.button}>
-//             {loading ? 'Đang mã hóa & Đăng ký...' : 'Đăng ký Tài khoản'}
-//           </button>
-//         </form>
-        
-//         <p style={{marginTop: '15px'}}>
-//           Đã có tài khoản? <Link to="/login">Đăng nhập</Link>
-//         </p>
-//       </div>
-//     </div>
-//   );
-// };
-
-// // CSS đơn giản (Inline styles) để bạn chạy được ngay
-// const styles = {
-//   container: {
-//     display: 'flex', justifyContent: 'center', alignItems: 'center', 
-//     height: '100vh', backgroundColor: '#f0f2f5'
-//   },
-//   formBox: {
-//     padding: '30px', borderRadius: '8px', backgroundColor: 'white',
-//     boxShadow: '0 4px 12px rgba(0,0,0,0.1)', width: '400px'
-//   },
-//   inputGroup: { marginBottom: '15px' },
-//   input: {
-//     width: '100%', padding: '10px', marginTop: '5px',
-//     border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box'
-//   },
-//   button: {
-//     width: '100%', padding: '12px', backgroundColor: '#007bff', color: 'white',
-//     border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '16px'
-//   },
-//   error: {
-//     backgroundColor: '#ffebee', color: '#c62828', padding: '10px',
-//     borderRadius: '4px', marginBottom: '15px', fontSize: '14px'
-//   }
-// };
-
-// export default Register;
-
 import { useState } from 'react';
 import { Lock, Mail, Eye, EyeOff, Shield, Check } from 'lucide-react';
 import axios from 'axios';
@@ -305,59 +121,44 @@ const Register = () => {
 
   return (
     <div style={styles.container}>
-      <div style={styles.bgDecoration1}></div>
-      <div style={styles.bgDecoration2}></div>
-      
-      <div style={styles.formContainer}>
-        {/* Left side - Branding */}
-        <div style={styles.brandingSide}>
-          <div style={styles.brandingContent}>
-            <div style={styles.logoContainer}>
-              <Shield size={48} color="white" strokeWidth={2} />
-            </div>
-            <h1 style={styles.brandTitle}>TeamVault</h1>
-            <p style={styles.brandSubtitle}>
-              Hệ thống quản lý mật khẩu Zero-Knowledge
+      <div style={styles.wrapper}>
+        {/* Left side - Welcome Banner */}
+        <div style={styles.leftSide}>
+          <div style={styles.decorativeShapes}>
+            <div style={styles.shape1}></div>
+            <div style={styles.shape2}></div>
+            <div style={styles.shape3}></div>
+            <div style={styles.shape4}></div>
+            <div style={styles.shape5}></div>
+          </div>
+          <div style={styles.welcomeContent}>
+            <h1 style={styles.welcomeTitle}>Welcome to TeamVault</h1>
+            <p style={styles.welcomeText}>
+              Zero-Knowledge Password Manager
+              <br/>
+              Tạo tài khoản để bắt đầu bảo vệ dữ liệu của bạn
+              <br/>
+              Hoàn toàn miễn phí và bảo mật tuyệt đối
             </p>
-            
-            <div style={styles.featureList}>
-              <div style={styles.featureItem}>
-                <Check size={20} color="#10b981" />
-                <span>Mã hóa End-to-End</span>
-              </div>
-              <div style={styles.featureItem}>
-                <Check size={20} color="#10b981" />
-                <span>Zero-Knowledge Architecture</span>
-              </div>
-              <div style={styles.featureItem}>
-                <Check size={20} color="#10b981" />
-                <span>Bảo mật tuyệt đối</span>
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* Right side - Form */}
-        <div style={styles.formSide}>
-          <div style={styles.formContent}>
+        {/* Right side - Register Form */}
+        <div style={styles.rightSide}>
+          <div style={styles.formBox}>
             <div style={styles.formHeader}>
-              <h2 style={styles.formTitle}>Tạo Tài Khoản</h2>
-              <p style={styles.formSubtitle}>
-                Bắt đầu bảo vệ dữ liệu của bạn ngay hôm nay
-              </p>
+              <h2 style={styles.formTitle}>CREATE ACCOUNT</h2>
             </div>
 
             {error && (
               <div style={styles.errorAlert}>
-                <div style={styles.errorIcon}>⚠️</div>
-                <div>{error}</div>
+                {error}
               </div>
             )}
 
-            <div style={styles.formWrapper}>
+            <div style={styles.form}>
               {/* Email Input */}
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Email</label>
                 <div style={styles.inputWrapper}>
                   <Mail size={20} style={styles.inputIcon} />
                   <input
@@ -366,7 +167,7 @@ const Register = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     style={styles.input}
-                    placeholder="your.email@example.com"
+                    placeholder="Email"
                     onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
                   />
                 </div>
@@ -374,7 +175,6 @@ const Register = () => {
 
               {/* Password Input */}
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Mật khẩu</label>
                 <div style={styles.inputWrapper}>
                   <Lock size={20} style={styles.inputIcon} />
                   <input
@@ -383,7 +183,7 @@ const Register = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     style={styles.input}
-                    placeholder="Nhập mật khẩu mạnh"
+                    placeholder="Password"
                     onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
                   />
                   <button
@@ -391,7 +191,7 @@ const Register = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     style={styles.eyeButton}
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
                 
@@ -415,7 +215,6 @@ const Register = () => {
 
               {/* Confirm Password Input */}
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Nhập lại mật khẩu</label>
                 <div style={styles.inputWrapper}>
                   <Lock size={20} style={styles.inputIcon} />
                   <input
@@ -424,7 +223,7 @@ const Register = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     style={styles.input}
-                    placeholder="Xác nhận mật khẩu"
+                    placeholder="Confirm Password"
                     onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
                   />
                   <button
@@ -432,7 +231,7 @@ const Register = () => {
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     style={styles.eyeButton}
                   >
-                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
                 {confirmPassword && password !== confirmPassword && (
@@ -450,26 +249,22 @@ const Register = () => {
                 }}
               >
                 {loading ? (
-                  <div style={styles.loadingContainer}>
-                    <div style={styles.loadingSpinner}></div>
-                    <span>Đang mã hóa & Đăng ký...</span>
-                  </div>
+                  <div style={styles.loadingSpinner}></div>
                 ) : (
-                  'Đăng ký Tài khoản'
+                  'SIGN UP'
                 )}
               </button>
-            </div>
 
-            <div style={styles.footer}>
-              <p style={styles.footerText}>
-                Đã có tài khoản?{' '}
-                <a href="/login" style={styles.link}>
-                  Đăng nhập ngay
-                </a>
-              </p>
+              <div style={styles.signupLink}>
+                Already have an account? <a href="/login" style={styles.link}>Login</a>
+              </div>
             </div>
           </div>
         </div>
+      </div>
+      
+      <div style={styles.footer}>
+        designed by <span style={styles.footerBrand}>TeamVault</span>
       </div>
     </div>
   );
@@ -477,146 +272,154 @@ const Register = () => {
 
 const styles = {
   container: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'stretch',
-    justifyContent: 'center',
+    height: '100vh',
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: '0',
     position: 'relative',
     overflow: 'hidden'
   },
-  bgDecoration1: {
-    position: 'absolute',
-    width: '500px',
-    height: '500px',
-    borderRadius: '50%',
-    background: 'rgba(255, 255, 255, 0.1)',
-    top: '-200px',
-    left: '-200px',
-    filter: 'blur(80px)'
-  },
-  bgDecoration2: {
-    position: 'absolute',
-    width: '400px',
-    height: '400px',
-    borderRadius: '50%',
-    background: 'rgba(255, 255, 255, 0.1)',
-    bottom: '-150px',
-    right: '-150px',
-    filter: 'blur(80px)'
-  },
-  formContainer: {
+  wrapper: {
     display: 'flex',
     width: '100%',
-    height: '100vh',
+    height: '100%',
     backgroundColor: 'white',
+    borderRadius: '0',
     overflow: 'hidden',
+    boxShadow: 'none'
+  },
+  leftSide: {
+    flex: 1,
+    background: 'linear-gradient(135deg, #667eea 0%, #f093fb 100%)',
+    padding: '0',
     position: 'relative',
-    zIndex: 1
-  },
-  brandingSide: {
-    flex: '1',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    padding: '60px 40px',
+    overflow: 'hidden',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    color: 'white'
+    justifyContent: 'center'
   },
-  brandingContent: {
-    maxWidth: '350px'
-  },
-  logoContainer: {
-    width: '80px',
-    height: '80px',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: '20px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: '24px',
-    backdropFilter: 'blur(10px)'
-  },
-  brandTitle: {
-    fontSize: '36px',
-    fontWeight: 'bold',
-    marginBottom: '12px',
-    margin: '0 0 12px 0'
-  },
-  brandSubtitle: {
-    fontSize: '16px',
-    opacity: 0.9,
-    marginBottom: '40px',
-    lineHeight: '1.6'
-  },
-  featureList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px'
-  },
-  featureItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    fontSize: '15px'
-  },
-  formSide: {
-    flex: '1',
-    padding: '60px 50px',
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    overflowY: 'auto'
-  },
-  formContent: {
+  decorativeShapes: {
+    position: 'absolute',
     width: '100%',
-    maxWidth: '400px',
-    margin: '0 auto'
+    height: '100%',
+    top: 0,
+    left: 0,
+    overflow: 'hidden'
+  },
+  shape1: {
+    position: 'absolute',
+    width: '150px',
+    height: '40px',
+    background: 'linear-gradient(45deg, rgba(255, 107, 107, 0.6), rgba(255, 159, 64, 0.6))',
+    borderRadius: '20px',
+    transform: 'rotate(-45deg)',
+    top: '80px',
+    left: '60px'
+  },
+  shape2: {
+    position: 'absolute',
+    width: '100px',
+    height: '30px',
+    background: 'linear-gradient(45deg, rgba(255, 159, 64, 0.5), rgba(255, 107, 107, 0.5))',
+    borderRadius: '15px',
+    transform: 'rotate(-30deg)',
+    top: '150px',
+    left: '100px'
+  },
+  shape3: {
+    position: 'absolute',
+    width: '80px',
+    height: '25px',
+    background: 'linear-gradient(45deg, rgba(255, 107, 107, 0.4), rgba(255, 159, 64, 0.4))',
+    borderRadius: '12px',
+    transform: 'rotate(-55deg)',
+    top: '200px',
+    left: '50px'
+  },
+  shape4: {
+    position: 'absolute',
+    width: '120px',
+    height: '35px',
+    background: 'linear-gradient(45deg, rgba(255, 159, 64, 0.6), rgba(255, 107, 107, 0.6))',
+    borderRadius: '18px',
+    transform: 'rotate(-40deg)',
+    bottom: '120px',
+    right: '80px'
+  },
+  shape5: {
+    position: 'absolute',
+    width: '90px',
+    height: '28px',
+    background: 'linear-gradient(45deg, rgba(255, 107, 107, 0.5), rgba(255, 159, 64, 0.5))',
+    borderRadius: '14px',
+    transform: 'rotate(-50deg)',
+    bottom: '180px',
+    right: '120px'
+  },
+  welcomeContent: {
+    position: 'relative',
+    zIndex: 1,
+    color: 'white',
+    textAlign: 'left'
+  },
+  welcomeTitle: {
+    fontSize: '38px',
+    fontWeight: 'bold',
+    marginBottom: '20px',
+    margin: '0 0 20px 0',
+    lineHeight: '1.2'
+  },
+  welcomeText: {
+    fontSize: '15px',
+    lineHeight: '1.8',
+    opacity: 0.95,
+    margin: 0
+  },
+  rightSide: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0',
+    backgroundColor: '#fafafa'
+  },
+  formBox: {
+    width: '100%',
+    maxWidth: '340px'
   },
   formHeader: {
-    marginBottom: '32px'
+    marginBottom: '30px',
+    textAlign: 'center'
   },
   formTitle: {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: '8px',
-    margin: '0 0 8px 0'
-  },
-  formSubtitle: {
-    fontSize: '14px',
-    color: '#6b7280'
+    fontSize: '20px',
+    fontWeight: '600',
+    color: '#667eea',
+    margin: 0,
+    letterSpacing: '1px'
   },
   errorAlert: {
     backgroundColor: '#fee2e2',
     border: '1px solid #fecaca',
     borderRadius: '8px',
-    padding: '12px 16px',
-    marginBottom: '24px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
+    padding: '12px',
+    marginBottom: '20px',
     color: '#991b1b',
-    fontSize: '14px'
+    fontSize: '14px',
+    textAlign: 'center'
   },
-  errorIcon: {
-    fontSize: '18px'
-  },
-  formWrapper: {
+  form: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '20px'
+    gap: '16px'
   },
   inputGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px'
-  },
-  label: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151'
+    gap: '6px'
   },
   inputWrapper: {
     position: 'relative',
@@ -625,18 +428,19 @@ const styles = {
   },
   inputIcon: {
     position: 'absolute',
-    left: '14px',
+    left: '12px',
     color: '#9ca3af',
     pointerEvents: 'none'
   },
   input: {
     width: '100%',
-    padding: '12px 12px 12px 44px',
-    border: '2px solid #e5e7eb',
+    padding: '12px 12px 12px 40px',
+    border: '1px solid #e5e7eb',
     borderRadius: '8px',
-    fontSize: '15px',
+    fontSize: '14px',
     transition: 'all 0.2s',
     outline: 'none',
+    backgroundColor: 'white',
     boxSizing: 'border-box'
   },
   eyeButton: {
@@ -649,14 +453,12 @@ const styles = {
     padding: '4px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'color 0.2s'
+    justifyContent: 'center'
   },
   strengthContainer: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    marginTop: '4px'
+    gap: '10px'
   },
   strengthBar: {
     flex: 1,
@@ -671,15 +473,14 @@ const styles = {
     borderRadius: '2px'
   },
   strengthText: {
-    fontSize: '12px',
+    fontSize: '11px',
     fontWeight: '600',
-    minWidth: '80px',
+    minWidth: '70px',
     textAlign: 'right'
   },
   mismatchText: {
-    fontSize: '12px',
-    color: '#ef4444',
-    marginTop: '4px'
+    fontSize: '11px',
+    color: '#ef4444'
   },
   submitButton: {
     width: '100%',
@@ -687,21 +488,18 @@ const styles = {
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
+    borderRadius: '25px',
+    fontSize: '14px',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.3s',
     marginTop: '8px',
+    letterSpacing: '1px',
+    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+    transition: 'all 0.3s',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '48px'
-  },
-  loadingContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px'
   },
   loadingSpinner: {
     width: '20px',
@@ -711,47 +509,27 @@ const styles = {
     borderRadius: '50%',
     animation: 'spin 0.8s linear infinite'
   },
-  footer: {
-    marginTop: '24px',
-    textAlign: 'center'
-  },
-  footerText: {
-    fontSize: '14px',
-    color: '#6b7280'
+  signupLink: {
+    textAlign: 'center',
+    fontSize: '13px',
+    color: '#6b7280',
+    marginTop: '8px'
   },
   link: {
     color: '#667eea',
     textDecoration: 'none',
-    fontWeight: '600',
-    transition: 'color 0.2s'
+    fontWeight: '600'
+  },
+  footer: {
+    position: 'absolute',
+    bottom: '20px',
+    fontSize: '13px',
+    color: 'white',
+    opacity: 0.9
+  },
+  footerBrand: {
+    fontWeight: '600'
   }
 };
-
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  
-  input:focus {
-    border-color: #667eea !important;
-  }
-  
-  button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-  }
-  
-  a:hover {
-    color: #764ba2 !important;
-  }
-  
-  @media (max-width: 768px) {
-    .formContainer {
-      flex-direction: column;
-    }
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default Register;

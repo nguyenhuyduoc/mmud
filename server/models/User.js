@@ -12,7 +12,14 @@ const UserSchema = new mongoose.Schema({
     ciphertext: { type: String, required: true } // Hex string
   },
   // Salt: Dùng để tính Master Key từ Password (nếu không dùng email làm salt)
-  salt: { type: String } 
+  salt: { type: String },
+
+  // ✅ ROLLBACK PROTECTION - Version counter incremented on ANY secret modification
+  secrets_version: { type: Number, default: 0 },
+
+  // ✅ SWAP PROTECTION - Collection-wide checksum
+  collection_checksum: { type: String, default: '' },
+  last_checksum_update: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('User', UserSchema);
