@@ -23,10 +23,28 @@ async function logAction(data) {
   }
 }
 
-// Helper: Calculate checksum for data integrity
+// Helper: Normalize access_list for consistent checksum (remove Mongoose _id from subdocs)
+function normalizeAccessList(accessList) {
+  return accessList.map(item => ({
+    user_id: item.user_id.toString(),
+    role: item.role,
+    permissions: item.permissions,
+    wrapped_key: item.wrapped_key,
+    granted_by: item.granted_by ? item.granted_by.toString() : null
+  }));
+}
+
+// Helper: Calculate checksum for data integrity (normalized)
 function calculateChecksum(data) {
+  // Normalize access_list to exclude Mongoose auto-generated _id fields
+  const normalizedData = {
+    name: data.name,
+    encrypted_data: data.encrypted_data,
+    access_list: normalizeAccessList(data.access_list || [])
+  };
+
   const hash = crypto.createHash('sha256');
-  hash.update(JSON.stringify(data));
+  hash.update(JSON.stringify(normalizedData));
   return hash.digest('hex');
 }
 
@@ -46,10 +64,6 @@ router.post('/', async (req, res) => {
   try {
     const { name, encrypted_data, access_list, category, tags, expiration, owner_email } = req.body;
 
-    // Calculate checksum for integrity
-    const checksumData = { name, encrypted_data, access_list };
-    const checksum = calculateChecksum(checksumData);
-
     // Find owner
     const owner = await User.findOne({ email: owner_email });
     if (!owner) {
@@ -65,6 +79,10 @@ router.post('/', async (req, res) => {
         : getPermissionsByRole(entry.role || 'viewer'),
       granted_by: owner._id
     }));
+
+    // Calculate checksum AFTER enhancing access_list (so it matches stored data)
+    const checksumData = { name, encrypted_data, access_list: enhancedAccessList };
+    const checksum = calculateChecksum(checksumData);
 
     const newSecret = new Secret({
       name,
@@ -165,6 +183,11 @@ router.get('/:email', async (req, res) => {
 
       if (calculatedChecksum !== secret.checksum) {
         //  TAMPERING DETECTED!
+        console.log('DEBUG Checksum mismatch for:', secret.name);
+        console.log('  Stored checksum:', secret.checksum);
+        console.log('  Calculated:', calculatedChecksum);
+        console.log('  Data used:', JSON.stringify(checksumData).substring(0, 200));
+
         corruptedSecrets.push({
           id: secret._id,
           name: secret.name
@@ -205,6 +228,111 @@ router.get('/:email', async (req, res) => {
   } catch (error) {
     console.error('Error fetching secrets:', error);
     res.status(500).json({ message: "Lỗi lấy bí mật" });
+  }
+});
+
+// PUT /api/secrets/share - Chia sẻ bí mật cho người khác (MUST BE BEFORE /:id)
+router.put('/share', async (req, res) => {
+  try {
+    const { secretId, newAccessEntry, sharer_email } = req.body;
+
+    // Find secret and sharer
+    const secret = await Secret.findById(secretId);
+    if (!secret) {
+      return res.status(404).json({ message: "Secret not found" });
+    }
+
+    const sharer = await User.findOne({ email: sharer_email });
+    if (!sharer) {
+      return res.status(404).json({ message: "Sharer not found" });
+    }
+
+    // Check if sharer has permission to share
+    const sharerAccess = secret.access_list.find(a => a.user_id.toString() === sharer._id.toString());
+    if (!sharerAccess || !sharerAccess.permissions.can_share) {
+      const clientInfo = getClientInfo(req);
+      await logAction({
+        user_id: sharer._id,
+        user_email: sharer.email,
+        action: 'share_secret',
+        secret_id: secretId,
+        secret_name: secret.name,
+        ...clientInfo,
+        success: false,
+        error_message: 'Insufficient permissions'
+      });
+
+      return res.status(403).json({ message: "Bạn không có quyền chia sẻ secret này" });
+    }
+
+    // Check if user already has access (prevent duplicates)
+    const existingAccess = secret.access_list.find(
+      a => a.user_id.toString() === newAccessEntry.user_id.toString()
+    );
+
+    if (existingAccess) {
+      return res.status(400).json({
+        message: "Người này đã được chia sẻ rồi!",
+        existing_role: existingAccess.role
+      });
+    }
+
+    // Enhance new access entry with role and permissions
+    const role = newAccessEntry.role || 'viewer';
+    const enhancedEntry = {
+      ...newAccessEntry,
+      role,
+      permissions: getPermissionsByRole(role),
+      granted_by: sharer._id,
+      granted_at: new Date()
+    };
+
+    // Tìm và update: Đẩy (push) thêm người mới vào access_list
+    await Secret.findByIdAndUpdate(secretId, {
+      $push: { access_list: enhancedEntry },
+      $inc: { version: 1 }
+    });
+
+    // RECALCULATE CHECKSUM after access_list changes
+    const updatedSecret = await Secret.findById(secretId);
+    const checksumData = {
+      name: updatedSecret.name,
+      encrypted_data: updatedSecret.encrypted_data,
+      access_list: updatedSecret.access_list
+    };
+    updatedSecret.checksum = calculateChecksum(checksumData);
+    await updatedSecret.save();
+
+    // UPDATE USER INTEGRITY (rollback/swap protection)
+    const { updateUserIntegrity } = require('../utils/integrityCheck');
+    await updateUserIntegrity(sharer);
+
+    // Send realtime notification
+    req.io.to(newAccessEntry.user_id).emit("new_share", {
+      message: "Bạn vừa nhận được một bí mật mới!",
+      secret_name: secret.name,
+      from: sharer.email
+    });
+
+    // Log action
+    const recipient = await User.findById(newAccessEntry.user_id);
+    const clientInfo = getClientInfo(req);
+    await logAction({
+      user_id: sharer._id,
+      user_email: sharer.email,
+      action: 'share_secret',
+      secret_id: secretId,
+      secret_name: secret.name,
+      target_user_email: recipient?.email,
+      ...clientInfo,
+      success: true,
+      metadata: { role }
+    });
+
+    res.status(200).json({ message: "Chia sẻ thành công!" });
+  } catch (error) {
+    console.error('Error sharing secret:', error);
+    res.status(500).json({ message: "Lỗi chia sẻ" });
   }
 });
 
@@ -308,111 +436,6 @@ router.put('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error updating secret:', error);
     res.status(500).json({ message: "Lỗi cập nhật secret" });
-  }
-});
-
-// PUT /api/secrets/share - Chia sẻ bí mật cho người khác
-router.put('/share', async (req, res) => {
-  try {
-    const { secretId, newAccessEntry, sharer_email } = req.body;
-
-    // Find secret and sharer
-    const secret = await Secret.findById(secretId);
-    if (!secret) {
-      return res.status(404).json({ message: "Secret not found" });
-    }
-
-    const sharer = await User.findOne({ email: sharer_email });
-    if (!sharer) {
-      return res.status(404).json({ message: "Sharer not found" });
-    }
-
-    // Check if sharer has permission to share
-    const sharerAccess = secret.access_list.find(a => a.user_id.toString() === sharer._id.toString());
-    if (!sharerAccess || !sharerAccess.permissions.can_share) {
-      const clientInfo = getClientInfo(req);
-      await logAction({
-        user_id: sharer._id,
-        user_email: sharer.email,
-        action: 'share_secret',
-        secret_id: secretId,
-        secret_name: secret.name,
-        ...clientInfo,
-        success: false,
-        error_message: 'Insufficient permissions'
-      });
-
-      return res.status(403).json({ message: "Bạn không có quyền chia sẻ secret này" });
-    }
-
-    // Check if user already has access (prevent duplicates)
-    const existingAccess = secret.access_list.find(
-      a => a.user_id.toString() === newAccessEntry.user_id.toString()
-    );
-
-    if (existingAccess) {
-      return res.status(400).json({
-        message: "Người này đã được chia sẻ rồi!",
-        existing_role: existingAccess.role
-      });
-    }
-
-    // Enhance new access entry with role and permissions
-    const role = newAccessEntry.role || 'viewer';
-    const enhancedEntry = {
-      ...newAccessEntry,
-      role,
-      permissions: getPermissionsByRole(role),
-      granted_by: sharer._id,
-      granted_at: new Date()
-    };
-
-    // Tìm và update: Đẩy (push) thêm người mới vào access_list
-    await Secret.findByIdAndUpdate(secretId, {
-      $push: { access_list: enhancedEntry },
-      $inc: { version: 1 }
-    });
-
-    // RECALCULATE CHECKSUM after access_list changes
-    const updatedSecret = await Secret.findById(secretId);
-    const checksumData = {
-      name: updatedSecret.name,
-      encrypted_data: updatedSecret.encrypted_data,
-      access_list: updatedSecret.access_list
-    };
-    updatedSecret.checksum = calculateChecksum(checksumData);
-    await updatedSecret.save();
-
-    // UPDATE USER INTEGRITY (rollback/swap protection)
-    const { updateUserIntegrity } = require('../utils/integrityCheck');
-    await updateUserIntegrity(sharer);
-
-    // Send realtime notification
-    req.io.to(newAccessEntry.user_id).emit("new_share", {
-      message: "Bạn vừa nhận được một bí mật mới!",
-      secret_name: secret.name,
-      from: sharer.email
-    });
-
-    // Log action
-    const recipient = await User.findById(newAccessEntry.user_id);
-    const clientInfo = getClientInfo(req);
-    await logAction({
-      user_id: sharer._id,
-      user_email: sharer.email,
-      action: 'share_secret',
-      secret_id: secretId,
-      secret_name: secret.name,
-      target_user_email: recipient?.email,
-      ...clientInfo,
-      success: true,
-      metadata: { role }
-    });
-
-    res.status(200).json({ message: "Chia sẻ thành công!" });
-  } catch (error) {
-    console.error('Error sharing secret:', error);
-    res.status(500).json({ message: "Lỗi chia sẻ" });
   }
 });
 

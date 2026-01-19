@@ -114,7 +114,7 @@ const Dashboard = () => {
   };
 
   const getSecretKey = async (secret) => {
-    const myAccess = secret.access_list.find(a => a.user_id === myUserId);
+    const myAccess = secret.access_list.find(a => a.user_id.toString() === myUserId.toString());
     if (!myAccess) throw new Error("Không có quyền truy cập");
 
     const { wrapped_key } = myAccess;
@@ -235,7 +235,7 @@ const Dashboard = () => {
     const recipient = users.find(u => u.email === recipientEmail);
     if (!recipient) return alert(" Email không tồn tại!");
 
-    if (secret.access_list.some(a => a.user_id === recipient._id)) {
+    if (secret.access_list.some(a => a.user_id.toString() === recipient._id.toString())) {
       return alert(" Người này đã được chia sẻ rồi!");
     }
 
@@ -352,7 +352,7 @@ const Dashboard = () => {
 
   const handleDeleteSecret = async (secret) => {
     // Check if user is owner (must have can_delete permission)
-    const userAccess = secret.access_list.find(a => a.user_id === myUserId);
+    const userAccess = secret.access_list.find(a => a.user_id.toString() === myUserId.toString());
     if (!userAccess || !userAccess.permissions?.can_delete) {
       return alert(" Bạn không có quyền xóa secret này! Chỉ chủ sở hữu mới có thể xóa.");
     }
@@ -481,8 +481,28 @@ const Dashboard = () => {
               </div>
             </div>
 
+
+
+            <style>{`
+              .create-form-row {
+                flex-wrap: wrap !important;
+              }
+              @media (max-width: 900px) {
+                .create-form-row {
+                  flex-direction: column !important;
+                }
+                .create-form-row input {
+                  width: 100% !important;
+                  flex: none !important;
+                }
+                .create-form-row button {
+                  width: 100% !important;
+                  justify-content: center !important;
+                }
+              }
+            `}</style>
             <form onSubmit={handleCreateSecret} style={styles.createForm}>
-              <div style={styles.formRow}>
+              <div className="create-form-row" style={styles.formRow}>
                 <input
                   placeholder="Tên bí mật (VD: API Key AWS)"
                   value={newSecretName}
@@ -550,7 +570,7 @@ const Dashboard = () => {
                         </div>
                       </div>
                       {/* Delete button in header */}
-                      {sec.access_list.find(a => a.user_id === myUserId)?.permissions?.can_delete && (
+                      {sec.access_list.find(a => a.user_id.toString() === myUserId.toString())?.permissions?.can_delete && (
                         <button
                           onClick={() => handleDeleteSecret(sec)}
                           style={styles.deleteButtonHeader}
@@ -579,7 +599,7 @@ const Dashboard = () => {
                         </button>
 
                         {/* Edit button - only for owner and editors */}
-                        {sec.access_list.find(a => a.user_id === myUserId)?.permissions?.can_edit && (
+                        {sec.access_list.find(a => a.user_id.toString() === myUserId.toString())?.permissions?.can_edit && (
                           <button onClick={() => handleEditSecret(sec)} style={styles.editButton}>
                             <Edit size={16} />
                             <span>Sửa</span>
@@ -589,7 +609,7 @@ const Dashboard = () => {
                     </div>
 
                     {/* Second row: Share section - only if user has can_share permission */}
-                    {sec.access_list.find(a => a.user_id === myUserId)?.permissions?.can_share && (
+                    {sec.access_list.find(a => a.user_id.toString() === myUserId.toString())?.permissions?.can_share && (
                       <div style={styles.shareSection}>
                         <div style={styles.shareRow}>
                           <select id={`share-user-${sec._id}`} style={styles.shareSelect}>

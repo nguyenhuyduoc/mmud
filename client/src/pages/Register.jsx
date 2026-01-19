@@ -250,9 +250,6 @@ const Register = () => {
                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                {confirmPassword && password !== confirmPassword && (
-                  <span style={styles.mismatchText}>Mật khẩu không khớp</span>
-                )}
               </div>
 
               <button

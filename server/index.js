@@ -48,7 +48,7 @@ app.use((req, res, next) => {
   next();
 });
 // Kết nối DB
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/secret_manager')
   .then(() => console.log('MongoDB Connected'))
   .catch(err => console.log(err));
 
