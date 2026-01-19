@@ -34,7 +34,7 @@ router.post('/register', async (req, res) => {
 
     await newUser.save();
 
-    console.log(`✅ User registered: ${email}`);
+    console.log(` User registered: ${email}`);
     res.status(201).json({ message: "Đăng ký thành công" });
 
   } catch (error) {
@@ -90,7 +90,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (!user) {
       // Record failed attempt
       const backoffInfo = backoffManager.recordFailure(email, clientIp);
-      console.log(`❌ Login failed for ${email} from ${clientIp} - Attempts: ${backoffInfo.attempts}`);
+      console.log(` Login failed for ${email} from ${clientIp} - Attempts: ${backoffInfo.attempts}`);
 
       return res.status(400).json({
         success: false,
@@ -103,7 +103,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (auth_hash !== user.auth_hash) {
       // Record failed attempt
       const backoffInfo = backoffManager.recordFailure(email, clientIp);
-      console.log(`❌ Login failed for ${email} from ${clientIp} - Attempts: ${backoffInfo.attempts}`);
+      console.log(` Login failed for ${email} from ${clientIp} - Attempts: ${backoffInfo.attempts}`);
 
       return res.status(400).json({
         success: false,
@@ -115,7 +115,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     // Đăng nhập thành công! Reset failed attempts
     backoffManager.recordSuccess(email, clientIp);
-    console.log(`✅ Login success for ${email} from ${clientIp}`);
+    console.log(` Login success for ${email} from ${clientIp}`);
 
     // Trả về các thông tin cần thiết để Client giải mã dữ liệu
     res.status(200).json({

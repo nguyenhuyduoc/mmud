@@ -23,7 +23,7 @@ const Login = () => {
     setError('');
 
     try {
-      console.log("🚀 Bắt đầu quy trình Zero-Knowledge Login...");
+      console.log(" Bắt đầu quy trình Zero-Knowledge Login...");
 
       // --- BƯỚC 1: LẤY SALT TỪ SERVER ---
       console.log("1. Đang xin Salt từ Server...");
@@ -60,7 +60,7 @@ const Login = () => {
         hexToBuffer(encrypted_private_key.iv)
       );
 
-      console.log("✅ Đã giải mã thành công Private Key!");
+      console.log(" Đã giải mã thành công Private Key!");
 
       // --- BƯỚC 6: LƯU TRỮ TẠM THỜI (SESSION) ---
       sessionStorage.setItem('user_email', email);

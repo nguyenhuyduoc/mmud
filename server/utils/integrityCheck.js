@@ -13,7 +13,7 @@ async function calculateCollectionChecksum(userId) {
             .select('_id version checksum')
             .sort({ _id: 1 }); // Consistent ordering
 
-        // ✅ Filter out secrets without checksum (legacy data)
+        //  Filter out secrets without checksum (legacy data)
         const validSecrets = secrets.filter(s => s.checksum);
 
         if (validSecrets.length === 0) {

@@ -44,10 +44,10 @@ class CertificateAuthority {
 
             this.caPublicKeyJWK = publicKeyJWK;
 
-            console.log('✅ CA keys loaded from disk');
+            console.log(' CA keys loaded from disk');
         } catch (error) {
             // Generate new CA keypair
-            console.log('🔑 Generating new CA keypair...');
+            console.log(' Generating new CA keypair...');
             await this.generateCAKeys();
 
             // Save to disk
@@ -63,9 +63,9 @@ class CertificateAuthority {
 
                 this.caPublicKeyJWK = publicKeyJWK;
 
-                console.log('✅ CA keys generated and saved');
+                console.log(' CA keys generated and saved');
             } catch (saveError) {
-                console.error('⚠️  Failed to save CA keys:', saveError.message);
+                console.error('  Failed to save CA keys:', saveError.message);
             }
         }
 
@@ -141,7 +141,7 @@ class CertificateAuthority {
 
         await certificate.save();
 
-        console.log(`✅ Certificate issued for user ${userId} - Serial: ${serialNumber}`);
+        console.log(` Certificate issued for user ${userId} - Serial: ${serialNumber}`);
 
         return {
             certificate: certData,
@@ -202,7 +202,7 @@ class CertificateAuthority {
         }
 
         await cert.revoke(reason);
-        console.log(`🚫 Certificate revoked: ${serialNumber} - Reason: ${reason}`);
+        console.log(` Certificate revoked: ${serialNumber} - Reason: ${reason}`);
 
         return cert;
     }
@@ -230,7 +230,7 @@ class CertificateAuthority {
         );
 
         if (result.modifiedCount > 0) {
-            console.log(`🧹 Marked ${result.modifiedCount} certificates as expired`);
+            console.log(` Marked ${result.modifiedCount} certificates as expired`);
         }
     }
 }

@@ -35,7 +35,7 @@ function getPermissionsByRole(role) {
   const roles = {
     owner: { can_read: true, can_edit: true, can_share: true, can_delete: true },
     editor: { can_read: true, can_edit: true, can_share: true, can_delete: false },
-    sharer: { can_read: true, can_edit: false, can_share: true, can_delete: false }, // ✅ New: Read + Share only
+    sharer: { can_read: true, can_edit: false, can_share: true, can_delete: false }, //  New: Read + Share only
     viewer: { can_read: true, can_edit: false, can_share: false, can_delete: false }
   };
   return roles[role] || roles.viewer;
@@ -79,7 +79,7 @@ router.post('/', async (req, res) => {
 
     await newSecret.save();
 
-    // ✅ UPDATE USER INTEGRITY (rollback/swap protection)
+    //  UPDATE USER INTEGRITY (rollback/swap protection)
     const { updateUserIntegrity } = require('../utils/integrityCheck');
     await updateUserIntegrity(owner);
 
@@ -153,7 +153,7 @@ router.get('/:email', async (req, res) => {
       return true;
     });
 
-    // ✅ CHECKSUM VERIFICATION - Detect tampering
+    //  CHECKSUM VERIFICATION - Detect tampering
     const corruptedSecrets = [];
     for (const secret of filteredSecrets) {
       const checksumData = {
@@ -164,7 +164,7 @@ router.get('/:email', async (req, res) => {
       const calculatedChecksum = calculateChecksum(checksumData);
 
       if (calculatedChecksum !== secret.checksum) {
-        // ⚠️ TAMPERING DETECTED!
+        //  TAMPERING DETECTED!
         corruptedSecrets.push({
           id: secret._id,
           name: secret.name
@@ -186,7 +186,7 @@ router.get('/:email', async (req, res) => {
 
     // If any secrets are corrupted, alert but still return (allow user to see issue)
     if (corruptedSecrets.length > 0) {
-      console.error(`⚠️  INTEGRITY VIOLATION: ${corruptedSecrets.length} secret(s) failed checksum verification`, corruptedSecrets);
+      console.error(`  INTEGRITY VIOLATION: ${corruptedSecrets.length} secret(s) failed checksum verification`, corruptedSecrets);
     }
 
     const total = await Secret.countDocuments(query);
@@ -244,7 +244,7 @@ router.put('/:id', async (req, res) => {
       return res.status(403).json({ message: "Bạn không có quyền sửa secret này" });
     }
 
-    // ✅ VERIFY CHECKSUM BEFORE EDIT (detect tampering)
+    //  VERIFY CHECKSUM BEFORE EDIT (detect tampering)
     const checksumData = {
       name: secret.name,
       encrypted_data: secret.encrypted_data,
@@ -253,8 +253,8 @@ router.put('/:id', async (req, res) => {
     const currentChecksum = calculateChecksum(checksumData);
 
     if (currentChecksum !== secret.checksum) {
-      // ⚠️ Checksum mismatch detected
-      console.warn(`⚠️ Checksum mismatch for secret ${secret._id}: expected ${secret.checksum}, got ${currentChecksum}`);
+      // Checksum mismatch detected
+      console.warn(` Checksum mismatch for secret ${secret._id}: expected ${secret.checksum}, got ${currentChecksum}`);
 
       const clientInfo = getClientInfo(req);
       await logAction({
@@ -268,10 +268,10 @@ router.put('/:id', async (req, res) => {
         error_message: `Auto-fixing checksum mismatch (likely due to legacy data or share without checksum update)`
       });
 
-      // ✅ AUTO-FIX: Update checksum to current value (migration for old secrets)
+      // AUTO-FIX: Update checksum to current value (migration for old secrets)
       secret.checksum = currentChecksum;
       await secret.save();
-      console.log(`✅ Auto-fixed checksum for secret ${secret._id}`);
+      console.log(` Auto-fixed checksum for secret ${secret._id}`);
     }
 
     // Update encrypted data
@@ -288,7 +288,7 @@ router.put('/:id', async (req, res) => {
 
     await secret.save();
 
-    // ✅ UPDATE USER INTEGRITY (rollback/swap protection)
+    // UPDATE USER INTEGRITY (rollback/swap protection)
     const { updateUserIntegrity } = require('../utils/integrityCheck');
     await updateUserIntegrity(user);
 
@@ -345,7 +345,7 @@ router.put('/share', async (req, res) => {
       return res.status(403).json({ message: "Bạn không có quyền chia sẻ secret này" });
     }
 
-    // ✅ Check if user already has access (prevent duplicates)
+    // Check if user already has access (prevent duplicates)
     const existingAccess = secret.access_list.find(
       a => a.user_id.toString() === newAccessEntry.user_id.toString()
     );
@@ -373,7 +373,7 @@ router.put('/share', async (req, res) => {
       $inc: { version: 1 }
     });
 
-    // ✅ RECALCULATE CHECKSUM after access_list changes
+    // RECALCULATE CHECKSUM after access_list changes
     const updatedSecret = await Secret.findById(secretId);
     const checksumData = {
       name: updatedSecret.name,
@@ -383,7 +383,7 @@ router.put('/share', async (req, res) => {
     updatedSecret.checksum = calculateChecksum(checksumData);
     await updatedSecret.save();
 
-    // ✅ UPDATE USER INTEGRITY (rollback/swap protection)
+    // UPDATE USER INTEGRITY (rollback/swap protection)
     const { updateUserIntegrity } = require('../utils/integrityCheck');
     await updateUserIntegrity(sharer);
 
@@ -487,7 +487,7 @@ router.delete('/:id', async (req, res) => {
     // Check if user is owner or has delete permission
     const userAccess = secret.access_list.find(a => a.user_id.toString() === user._id.toString());
     if (!userAccess || !userAccess.permissions.can_delete) {
-      // ✅ Log failed delete attempt for security monitoring
+      // Log failed delete attempt for security monitoring
       const clientInfo = getClientInfo(req);
       await logAction({
         user_id: user._id,
@@ -519,7 +519,7 @@ router.delete('/:id', async (req, res) => {
     // Delete the secret
     await Secret.findByIdAndDelete(id);
 
-    // ✅ UPDATE USER INTEGRITY (rollback/swap protection)
+    // UPDATE USER INTEGRITY (rollback/swap protection)
     const { updateUserIntegrity } = require('../utils/integrityCheck');
     await updateUserIntegrity(user);
 

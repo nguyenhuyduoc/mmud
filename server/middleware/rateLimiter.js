@@ -60,7 +60,7 @@ const loginLimiter = rateLimit({
     windowMs: 5 * 60 * 1000, // 5 minutes (shorter window)
     max: 20, // More lenient, rely on exponential backoff for security
     skipSuccessfulRequests: true, // Only count failed logins
-    // ✅ Track by email instead of IP to allow multiple accounts from same IP
+    //  Track by email instead of IP to allow multiple accounts from same IP
     keyGenerator: (req) => {
         const email = req.body?.email || 'unknown';
         return `login:${email}`;

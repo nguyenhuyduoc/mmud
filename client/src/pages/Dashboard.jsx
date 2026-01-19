@@ -43,14 +43,14 @@ const Dashboard = () => {
     }
   }, [myEmail, navigate]);
 
-  // ✅ INTEGRITY VERIFICATION HELPER
+  //  INTEGRITY VERIFICATION HELPER
   const verifyIntegrity = (response, skipAlert = false) => {
     // Check for integrity warnings from server
     if (response.data.integrity_warning && !skipAlert) {
       const warning = response.data.integrity_warning;
-      console.error('⚠️ INTEGRITY WARNING:', warning);
+      console.error(' INTEGRITY WARNING:', warning);
       alert(
-        `⚠️ DATA INTEGRITY ISSUE DETECTED!\n\n` +
+        ` DATA INTEGRITY ISSUE DETECTED!\n\n` +
         `${warning.corrupted_count} secret(s) failed checksum verification.\n\n` +
         `This may indicate:\n` +
         `- Database tampering\n` +
@@ -66,10 +66,10 @@ const Dashboard = () => {
     const storedVersion = localStorage.getItem(`user_secrets_version_${myEmail}`);
 
     if (storedVersion && currentVersion && parseInt(currentVersion) < parseInt(storedVersion)) {
-      console.error('⚠️ ROLLBACK DETECTED: Version mismatch');
+      console.error('ROLLBACK DETECTED: Version mismatch');
       if (!skipAlert) {
         alert(
-          `⚠️ POTENTIAL ROLLBACK ATTACK DETECTED!\n\n` +
+          `POTENTIAL ROLLBACK ATTACK DETECTED!\n\n` +
           `Expected version: ${storedVersion}\n` +
           `Received version: ${currentVersion}\n\n` +
           `Your data may have been restored to an older state.\n` +
@@ -92,7 +92,7 @@ const Dashboard = () => {
 
       const secretsRes = await axios.get(`http://localhost:5000/api/secrets/${myEmail}`);
 
-      // ✅ VERIFY INTEGRITY (skip alert right after delete/edit)
+      //  VERIFY INTEGRITY (skip alert right after delete/edit)
       verifyIntegrity(secretsRes, skipIntegrityAlert);
 
       const secretsData = secretsRes.data.secrets || secretsRes.data;
@@ -197,12 +197,12 @@ const Dashboard = () => {
       setNewSecretValue('');
       setShowCreateForm(false);
 
-      // ✅ Skip integrity alert right after create (version increment is intentional)
+      //  Skip integrity alert right after create (version increment is intentional)
       await fetchInitialData(true);
-      alert("✅ Tạo bí mật thành công!");
+      alert(" Tạo bí mật thành công!");
     } catch (err) {
       console.error(err);
-      alert("❌ Lỗi tạo bí mật: " + (err.response?.data?.message || err.message));
+      alert(" Lỗi tạo bí mật: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -221,10 +221,10 @@ const Dashboard = () => {
         hexToBuffer(secret.encrypted_data.iv)
       );
 
-      alert(`🔓 NỘI DUNG: ${plaintext}`);
+      alert(` NỘI DUNG: ${plaintext}`);
     } catch (err) {
       console.error(err);
-      alert("❌ Không thể giải mã (Có thể bạn không có quyền)");
+      alert(" Không thể giải mã (Có thể bạn không có quyền)");
     }
   };
 
@@ -233,10 +233,10 @@ const Dashboard = () => {
     if (!selectedRole) selectedRole = 'viewer'; // Default to viewer
 
     const recipient = users.find(u => u.email === recipientEmail);
-    if (!recipient) return alert("❌ Email không tồn tại!");
+    if (!recipient) return alert(" Email không tồn tại!");
 
     if (secret.access_list.some(a => a.user_id === recipient._id)) {
-      return alert("⚠️ Người này đã được chia sẻ rồi!");
+      return alert(" Người này đã được chia sẻ rồi!");
     }
 
     setLoading(true);
@@ -275,10 +275,10 @@ const Dashboard = () => {
         sharer: 'Xem + Chia sẻ',
         editor: 'Xem + Sửa + Chia sẻ'
       };
-      alert(`✅ Chia sẻ thành công với quyền: ${roleNames[selectedRole]}!`);
+      alert(` Chia sẻ thành công với quyền: ${roleNames[selectedRole]}!`);
     } catch (err) {
       console.error(err);
-      alert("❌ Lỗi chia sẻ: " + err.message);
+      alert(" Lỗi chia sẻ: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -305,7 +305,7 @@ const Dashboard = () => {
       setShowEditModal(true);
     } catch (err) {
       console.error(err);
-      alert("❌ Không thể giải mã secret để chỉnh sửa!");
+      alert(" Không thể giải mã secret để chỉnh sửa!");
     }
   };
 
@@ -339,12 +339,12 @@ const Dashboard = () => {
       setEditingSecret(null);
       setEditSecretValue('');
 
-      // ✅ Skip integrity alert right after edit (version increment is intentional)
+      // Skip integrity alert right after edit (version increment is intentional)
       await fetchInitialData(true);
-      alert("✅ Cập nhật secret thành công!");
+      alert(" Cập nhật secret thành công!");
     } catch (err) {
       console.error(err);
-      alert("❌ Lỗi cập nhật secret: " + (err.response?.data?.message || err.message));
+      alert(" Lỗi cập nhật secret: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -354,12 +354,12 @@ const Dashboard = () => {
     // Check if user is owner (must have can_delete permission)
     const userAccess = secret.access_list.find(a => a.user_id === myUserId);
     if (!userAccess || !userAccess.permissions?.can_delete) {
-      return alert("❌ Bạn không có quyền xóa secret này! Chỉ chủ sở hữu mới có thể xóa.");
+      return alert(" Bạn không có quyền xóa secret này! Chỉ chủ sở hữu mới có thể xóa.");
     }
 
     // Build warning message based on sharing status
     const sharedCount = secret.access_list.length - 1;
-    let warningMessage = `⚠️  Bạn chắc chắn muốn xóa bí mật "${secret.name}" không?\n\n`;
+    let warningMessage = ` Bạn chắc chắn muốn xóa bí mật "${secret.name}" không?\n\n`;
 
     if (sharedCount > 0) {
       const sharedWith = secret.access_list
@@ -367,7 +367,7 @@ const Dashboard = () => {
         .map(a => users.find(u => u._id === a.user_id)?.email || 'Unknown')
         .join(', ');
 
-      warningMessage += `⚠️  CẢNH BÁO: Secret này đã chia sẻ cho ${sharedCount} người:\n`;
+      warningMessage += ` CẢNH BÁO: Secret này đã chia sẻ cho ${sharedCount} người:\n`;
       warningMessage += `${sharedWith}\n\n`;
       warningMessage += `Khi bạn xóa, tất cả những người này sẽ MẤT QUYỀN TRUY CẬP ngay lập tức!\n\n`;
     }
@@ -384,12 +384,12 @@ const Dashboard = () => {
         params: { user_email: myEmail }
       });
 
-      // ✅ Skip integrity alert right after delete (version increment is intentional)
+      // Skip integrity alert right after delete (version increment is intentional)
       await fetchInitialData(true);
-      alert("✅ Đã xóa bí mật thành công!");
+      alert(" Đã xóa bí mật thành công!");
     } catch (err) {
       console.error(err);
-      alert("❌ Lỗi xóa bí mật: " + (err.response?.data?.message || err.message));
+      alert(" Lỗi xóa bí mật: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }

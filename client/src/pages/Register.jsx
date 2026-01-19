@@ -49,18 +49,34 @@ const Register = () => {
     setError('');
     setLoading(true);
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Email không hợp lệ! Vui lòng nhập đúng định dạng (vd: user@example.com)");
+      setLoading(false);
+      return;
+    }
+
+    // Check password match
     if (password !== confirmPassword) {
       setError("Mật khẩu không khớp!");
       setLoading(false);
       return;
     }
 
+    // Password strength check
+    if (password.length < 8) {
+      setError("Mật khẩu phải có ít nhất 8 ký tự!");
+      setLoading(false);
+      return;
+    }
+
     try {
-      console.log("🚀 Bắt đầu quy trình Zero-Knowledge Registration...");
+      console.log(" Bắt đầu quy trình Zero-Knowledge Registration...");
 
       // --- BƯỚC 1: TẠO MASTER KEY (Client-side only) ---
-      const salt = genRandomSalt(); 
-      
+      const salt = genRandomSalt();
+
       console.log("1. Đang tính toán Master Key từ mật khẩu...");
       const masterKey = await passwordToMasterKey(password, salt);
       // console.log(masterKey)
@@ -82,10 +98,10 @@ const Register = () => {
       console.log("4. Đang đóng gói Private Key vào két sắt...");
       const privKeyJsonString = JSON.stringify(privateKeyJWK);
       const iv = genRandomSalt();
-      
+
       const encryptedPrivateKeyCipher = await encryptWithGCM(
-        masterKey, 
-        privKeyJsonString, 
+        masterKey,
+        privKeyJsonString,
         iv
       );
 
@@ -102,12 +118,12 @@ const Register = () => {
       };
 
       console.log("5. Gửi Payload lên API (Demo)");
-      
+
       await axios.post('http://localhost:5000/api/auth/register', payload);
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       alert("Đăng ký thành công! Hãy đăng nhập.");
       navigate('/login');
 
@@ -135,9 +151,9 @@ const Register = () => {
             <h1 style={styles.welcomeTitle}>Welcome to TeamVault</h1>
             <p style={styles.welcomeText}>
               Zero-Knowledge Password Manager
-              <br/>
+              <br />
               Tạo tài khoản để bắt đầu bảo vệ dữ liệu của bạn
-              <br/>
+              <br />
               Hoàn toàn miễn phí và bảo mật tuyệt đối
             </p>
           </div>
@@ -194,11 +210,11 @@ const Register = () => {
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                
+
                 {password && (
                   <div style={styles.strengthContainer}>
                     <div style={styles.strengthBar}>
-                      <div 
+                      <div
                         style={{
                           ...styles.strengthFill,
                           width: `${(passwordStrength.strength / 5) * 100}%`,
@@ -206,7 +222,7 @@ const Register = () => {
                         }}
                       ></div>
                     </div>
-                    <span style={{...styles.strengthText, color: passwordStrength.color}}>
+                    <span style={{ ...styles.strengthText, color: passwordStrength.color }}>
                       {passwordStrength.text}
                     </span>
                   </div>
@@ -262,7 +278,7 @@ const Register = () => {
           </div>
         </div>
       </div>
-      
+
       <div style={styles.footer}>
         designed by <span style={styles.footerBrand}>TeamVault</span>
       </div>
